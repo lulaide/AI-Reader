@@ -1,0 +1,39 @@
+# docker-compose.yml
+
+version: '3.8'
+
+services:
+  # 后端服务配置
+  backend:
+    build:
+      context: ./back
+      dockerfile: Dockerfile
+    container_name: ai-reader-backend
+    # 从 back/.env 文件加载环境变量
+    env_file:
+      - ./back/.env
+    # 将容器的 4000 端口映射到主机的 4000 端口
+    ports:
+      - "4000:4000"
+    # 挂载数据库文件，实现数据持久化
+    volumes:
+      - ./back/articles.db:/app/articles.db
+    restart: unless-stopped
+
+  # 前端服务配置
+  frontend:
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    container_name: ai-reader-frontend
+    # 将容器的 80 端口映射到主机的 8080 端口
+    # 访问 http://localhost:8080
+    ports:
+      - "8080:80"
+    # 确保后端服务启动后，前端服务再启动
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+# Docker Compose 会自动创建默认网络，
+# 使得前端容器可以通过服务名 'backend' 访问后端容器。

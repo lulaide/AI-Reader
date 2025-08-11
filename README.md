@@ -104,6 +104,46 @@ AI 文章阅读器是一个全栈Web应用，允许用户输入文章链接，�
     ```
     前端应用将在 `http://127.0.0.1:5173` (或另一个可用端口) 上运行，并已配置好代理，会自动将 `/api` 请求转发到后端。
 
+## 🐳 使用 Docker 部署
+
+我们推荐使用 Docker 和 Docker Compose 来部署此应用，这可以简化环境配置和依赖管理。项目根目录下已提供 `docker-compose.yml` 文件，可以一键启动前后端所有服务。
+
+### 使用 Docker Compose (推荐)
+
+**前提**:
+- 已安装 [Docker](https://www.docker.com/get-started) 和 [Docker Compose](https://docs.docker.com/compose/install/)。
+- 确保 `back/.env` 文件已按之前的说明创建好。
+
+**启动服务**:
+在项目根目录下运行以下命令：
+```bash
+docker-compose up --build
+```
+- `--build` 参数会强制重新构建镜像，确保应用最新的代码。
+- 服务启动后，可以通过 `http://localhost:8080` 访问前端应用。
+
+**停止服务**:
+在同一个目录下，按 `Ctrl + C`，然后运行：
+```bash
+docker-compose down
+```
+
+### 单独构建 Docker 镜像 (手动)
+
+如果你想单独构建每个服务的镜像，可以执行以下命令：
+
+**构建后端镜像**:
+```bash
+cd back
+docker build -t ai-reader-backend .
+```
+
+**构建前端镜像**:
+```bash
+cd front
+docker build -t ai-reader-frontend .
+```
+
 ## 目录结构
 
 ```
