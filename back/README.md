@@ -1,6 +1,140 @@
-# DeepSeek 文章阅读器
+# AI Reader Backend
 
-本项目是一个基于 Flask 和 DeepSeek API 构建的智能文章阅读和问答应用。用户可以输入文章链接，应用会自动抓取、解析和美化文章内容，并提供一个清爽的阅读界面。在阅读的同时，用户可以随时就文章内容向 AI 提问，实现沉浸式的智能阅读体验。
+AI Reader 后端API服务，提供文章抓取、美化和AI问答功能。
+
+## 技术栈
+
+- **Python 3.10+**
+- **Flask** - Web框架
+- **uv** - 包管理器
+- **OpenAI API** - AI功能
+- **newspaper3k** - 文章抓取
+- **flask-cors** - 跨域支持
+
+## 功能特性
+
+- 文章URL抓取和内容提取
+- 文章内容AI美化和润色
+- 基于文章内容的AI问答
+- RESTful API接口
+- CORS支持，便于前端调用
+
+## 环境要求
+
+- Python 3.10+
+- uv包管理器
+
+## 安装和使用
+
+### 1. 克隆项目
+
+```bash
+git clone <repository-url>
+cd AI-Reader/back
+```
+
+### 2. 创建环境变量文件
+
+创建 `.env` 文件：
+
+```env
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_API_BASE=https://api.deepseek.com
+FLASK_ENV=development
+FLASK_DEBUG=True
+```
+
+### 3. 安装依赖
+
+```bash
+uv sync
+```
+
+### 4. 启动服务
+
+```bash
+# 方式1: 使用启动脚本
+./start.sh
+
+# 方式2: 直接运行
+uv run python main.py
+```
+
+服务将启动在 `http://localhost:5000`
+
+## API 接口
+
+### 获取所有文章
+- **GET** `/api/articles`
+- **响应**: 
+```json
+{
+  "articles": [...],
+  "total": 5
+}
+```
+
+### 获取单篇文章
+- **GET** `/api/articles/{index}`
+- **响应**:
+```json
+{
+  "article": {...},
+  "index": 0
+}
+```
+
+### 添加文章
+- **POST** `/api/articles`
+- **请求体**:
+```json
+{
+  "url": "https://example.com/article"
+}
+```
+
+### AI问答
+- **POST** `/api/ask`
+- **请求体**:
+```json
+{
+  "question": "这篇文章讲了什么？",
+  "index": 0
+}
+```
+
+### 健康检查
+- **GET** `/api/health`
+
+## 项目结构
+
+```
+back/
+├── main.py          # Flask应用主文件
+├── model.py         # 核心业务逻辑
+├── pyproject.toml   # uv项目配置
+├── .env             # 环境变量（需要创建）
+├── .gitignore       # Git忽略文件
+├── start.sh         # 启动脚本
+├── articles.json    # 文章数据存储
+└── README.md        # 项目文档
+```
+
+## 开发说明
+
+- 使用 `uv` 管理Python依赖
+- 使用 `.env` 文件管理配置
+- 支持热重载开发模式
+- 包含CORS支持，便于前端开发
+
+## 部署
+
+生产环境部署时：
+
+1. 设置 `FLASK_ENV=production`
+2. 设置 `FLASK_DEBUG=False`
+3. 使用适当的WSGI服务器（如Gunicorn）
+4. 配置反向代理（如Nginx）目是一个基于 Flask 和 DeepSeek API 构建的智能文章阅读和问答应用。用户可以输入文章链接，应用会自动抓取、解析和美化文章内容，并提供一个清爽的阅读界面。在阅读的同时，用户可以随时就文章内容向 AI 提问，实现沉浸式的智能阅读体验。
 
 ## ✨ 功能特性
 

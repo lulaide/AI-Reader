@@ -1,7 +1,16 @@
-from config import OPENAI_API_BASE, OPENAI_API_KEY
+import os
+from dotenv import load_dotenv
 from openai import OpenAI
 from newspaper import Article
 import json
+
+# 加载环境变量
+load_dotenv()
+
+# 从环境变量获取配置
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+OPENAI_API_BASE = os.getenv('OPENAI_API_BASE')
+
 try:
     with open('articles.json', 'r', encoding='utf-8') as f:
             articles = json.load(f)
@@ -72,7 +81,8 @@ if __name__ == "__main__":
     url = 'http://politics.people.com.cn/n1/2025/0618/c1024-40502834.html'
     article = fetch_article(url)
     beautified_article = beatify_article(article)
-    articles.append(json.loads(beautified_article))
-    with open('articles.json', 'w', encoding='utf-8') as f:
-        json.dump(articles, f, ensure_ascii=False, indent=4)
-    print(ask_ai("这篇文章讲了什么",0))
+    if beautified_article:
+        articles.append(json.loads(beautified_article))
+        with open('articles.json', 'w', encoding='utf-8') as f:
+            json.dump(articles, f, ensure_ascii=False, indent=4)
+        print(ask_ai("这篇文章讲了什么",0))
