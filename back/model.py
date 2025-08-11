@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from newspaper import Article
 import json
+import database
 
 # 加载环境变量
 load_dotenv()
@@ -10,12 +11,6 @@ load_dotenv()
 # 从环境变量获取配置
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_API_BASE = os.getenv('OPENAI_API_BASE')
-
-try:
-    with open('articles.json', 'r', encoding='utf-8') as f:
-            articles = json.load(f)
-except (FileNotFoundError, json.JSONDecodeError):
-        articles = []
 
 beatify_prompt = """
 你是一名专业的新闻编辑，负责将文章内容进行美化和润色。
@@ -61,13 +56,18 @@ def beatify_article(article: Article):
     stream=False
     )
     return response.choices[0].message.content
-def ask_ai(question: str , index: int):
+
+def ask_ai(question: str , article_id: int):
+    article = database.get_article_by_id(article_id)
+    if not article:
+        raise ValueError("Article not found in database")
+        
     response = client.chat.completions.create(
         model="deepseek-chat",
         messages=[
             {
                 "role": "system",
-                "content": ask_prompt + articles[index]["content"]
+                "content": ask_prompt + article["content"]
             },
             {
                 "role": "user",
@@ -77,12 +77,3 @@ def ask_ai(question: str , index: int):
         stream=False
     )
     return response.choices[0].message.content
-if __name__ == "__main__":
-    url = 'http://politics.people.com.cn/n1/2025/0618/c1024-40502834.html'
-    article = fetch_article(url)
-    beautified_article = beatify_article(article)
-    if beautified_article:
-        articles.append(json.loads(beautified_article))
-        with open('articles.json', 'w', encoding='utf-8') as f:
-            json.dump(articles, f, ensure_ascii=False, indent=4)
-        print(ask_ai("这篇文章讲了什么",0))
