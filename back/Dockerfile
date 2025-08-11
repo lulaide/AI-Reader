@@ -15,4 +15,4 @@ EXPOSE 4000
 
 # 定义容器启动时运行的命令
 # 使用 uv run 来启动应用，并监听所有网络接口
-CMD ["uv", "run", "--host=0.0.0.0", "--port=4000"]
+CMD ["uv", "run", "main.py"]
