@@ -28,3 +28,7 @@ __pycache__
 # 环境变量
 
 .env
+
+# 数据
+
+articles.db
