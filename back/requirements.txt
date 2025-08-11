@@ -1,0 +1,6 @@
+openai
+lxml_html_clean
+newspaper3k
+nltk
+flask
+httpx
