@@ -1,4 +1,4 @@
-name: 构建和推送 Docker 镜像
+name: 构建、推送和部署
 on:
   push:
     branches:
@@ -12,22 +12,20 @@ jobs:
         run: echo "172.22.160.14 gitea.lulaide.com" | sudo tee -a /etc/hosts
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Log in to Harbor
         uses: docker/login-action@v3
         with:
           registry: harbor.lulaide.com:80
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_PASSWORD }}
-
       - name: Build and push backend image
         uses: docker/build-push-action@v5
         with:
           context: ./back
           push: true
           tags: |
-            harbor.lulaide.com:80/ai-reader/ai-reader-backend:latest
-            harbor.lulaide.com:80/ai-reader/ai-reader-backend:${{ gitea.sha }}
+            ${{ vars.BACKEND_IMAGE }}:latest
+            ${{ vars.BACKEND_IMAGE }}:${{ gitea.sha }}
 
   build-and-push-frontend:
     runs-on: ubuntu-latest
@@ -36,19 +34,40 @@ jobs:
         run: echo "172.22.160.14 gitea.lulaide.com" | sudo tee -a /etc/hosts
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Log in to Harbor
         uses: docker/login-action@v3
         with:
           registry: harbor.lulaide.com:80
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_PASSWORD }}
-
       - name: Build and push frontend image
         uses: docker/build-push-action@v5
         with:
           context: ./front
           push: true
           tags: |
-            harbor.lulaide.com:80/ai-reader/ai-reader-frontend:latest
-            harbor.lulaide.com:80/ai-reader/ai-reader-frontend:${{ gitea.sha }}
+            ${{ vars.FRONTEND_IMAGE }}:latest
+            ${{ vars.FRONTEND_IMAGE }}:${{ gitea.sha }}
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [build-and-push-backend, build-and-push-frontend]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Substitute variables and apply Kubernetes deployment
+        env:
+          OPENAI_API_KEY_B64: ${{ secrets.OPENAI_API_KEY_B64 }}
+          OPENAI_API_BASE_B64: ${{ secrets.OPENAI_API_BASE_B64 }}
+          SQLITE_HOST_PATH: ${{ vars.SQLITE_HOST_PATH }}
+          BACKEND_IMAGE_TAG: ${{ vars.BACKEND_IMAGE }}:${{ gitea.sha }}
+          FRONTEND_IMAGE_TAG: ${{ vars.FRONTEND_IMAGE }}:${{ gitea.sha }}
+        run: |
+          envsubst < k8s-deployment.yaml | kubectl apply -f -

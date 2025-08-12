@@ -4,25 +4,14 @@ metadata:
   name: ai-reader
 ---
 apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: backend-db-pvc
-  namespace: ai-reader
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
----
-apiVersion: v1
 kind: Secret
 metadata:
   name: backend-secret
   namespace: ai-reader
 type: Opaque
 data:
-  OPENAI_API_KEY: "c2steW91ci1rZXk=" # echo -n 'sk-your-key' | base64
+  OPENAI_API_KEY: ${OPENAI_API_KEY_B64}
+  OPENAI_API_BASE: ${OPENAI_API_BASE_B64}
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39,9 +28,11 @@ spec:
       labels:
         app: backend
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: thunder   # 绑定到含该本地文件的 thunder 节点
       containers:
         - name: backend
-          image: your-dockerhub-username/ai-reader-backend:latest
+          image: ${BACKEND_IMAGE_TAG}
           ports:
             - containerPort: 4000
           envFrom:
@@ -49,12 +40,12 @@ spec:
                 name: backend-secret
           volumeMounts:
             - name: db-storage
-              mountPath: /app/articles.db
-              subPath: articles.db
+              mountPath: /app/articles.db           # 容器内访问路径（文件）
       volumes:
         - name: db-storage
-          persistentVolumeClaim:
-            claimName: backend-db-pvc
+          hostPath:
+            path: ${SQLITE_HOST_PATH}  # 宿主机真实文件
+            type: File
 ---
 apiVersion: v1
 kind: Service
@@ -87,7 +78,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: your-dockerhub-username/ai-reader-frontend:latest
+          image: ${FRONTEND_IMAGE_TAG}
           ports:
             - containerPort: 80
 ---
@@ -97,10 +88,11 @@ metadata:
   name: frontend-service
   namespace: ai-reader
 spec:
-  type: LoadBalancer
+  type: NodePort
   selector:
     app: frontend
   ports:
     - protocol: TCP
       port: 80
       targetPort: 80
+      nodePort: 30080
