@@ -10,6 +10,9 @@ COPY . .
 # 使用 uv 安装项目依赖
 RUN uv sync
 
+# 修复 newspaper 依赖
+RUN python -m nltk.downloader punkt_tab
+
 # 暴露 Flask 应用运行的端口
 EXPOSE 4000
 
