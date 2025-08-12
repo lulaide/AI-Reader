@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua
 
 # 修复 newspaper3k 的 nltk 数据依赖
 RUN python -m nltk.downloader punkt
-
+RUN python -m nltk.downloader punkt_tab
 # 复制所有源代码到工作目录
 COPY . .
 
