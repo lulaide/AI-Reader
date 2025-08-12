@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . .
 
 # 使用 uv 安装项目依赖
-RUN uv sync
+RUN uv sync -i https://pypi.tuna.tsinghua.edu.cn/simple/
 
 # 修复 newspaper 依赖
 RUN python -m nltk.downloader punkt_tab
