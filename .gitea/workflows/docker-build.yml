@@ -53,6 +53,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-and-push-backend, build-and-push-frontend]
     steps:
+      - name: Add Gitea host to /etc/hosts
+        run: echo "172.22.160.14 gitea.lulaide.com" | sudo tee -a /etc/hosts
+        
       - name: Checkout repository
         uses: actions/checkout@v4
 
