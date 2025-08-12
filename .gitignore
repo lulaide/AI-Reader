@@ -29,6 +29,3 @@ __pycache__
 
 .env
 
-# 数据
-
-articles.db
