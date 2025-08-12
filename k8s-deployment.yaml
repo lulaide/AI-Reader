@@ -10,8 +10,8 @@ metadata:
   namespace: ai-reader
 type: Opaque
 data:
-  OPENAI_API_KEY: ${OPENAI_API_KEY_B64}
-  OPENAI_API_BASE: ${OPENAI_API_BASE_B64}
+  OPENAI_API_KEY: c2st
+  OPENAI_API_BASE: aHR0cHM
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -32,7 +32,7 @@ spec:
         kubernetes.io/hostname: thunder   # 绑定到含该本地文件的 thunder 节点
       containers:
         - name: backend
-          image: ${BACKEND_IMAGE_TAG}
+          image: harbor.lulaide.com:80/ai-reader/ai-reader-backend:latest
           ports:
             - containerPort: 4000
           envFrom:
@@ -44,7 +44,7 @@ spec:
       volumes:
         - name: db-storage
           hostPath:
-            path: ${SQLITE_HOST_PATH}  # 宿主机真实文件
+            path: /root/AI-Reader/back/articles.db  # 宿主机真实文件
             type: File
 ---
 apiVersion: v1
@@ -78,7 +78,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ${FRONTEND_IMAGE_TAG}
+          image: harbor.lulaide.com:80/ai-reader/ai-reader-frontend:latest
           ports:
             - containerPort: 80
 ---
