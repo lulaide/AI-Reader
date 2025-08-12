@@ -1,21 +1,23 @@
-# 使用 astral/uv 官方镜像作为基础镜像，它已预装 uv
-FROM astral/uv:python3.12-bookworm-slim
+FROM python:3.11-slim
 
 # 设置工作目录
 WORKDIR /app
 
-# 复制后端所有源代码到工作目录
+# 复制依赖文件
+COPY requirements.txt ./
+
+# 安装依赖，并使用清华镜像源加速
+RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 修复 newspaper3k 的 nltk 数据依赖
+RUN python -m nltk.downloader -d /usr/share/nltk_data punkt
+
+# 复制所有源代码到工作目录
 COPY . .
-
-# 使用 uv 安装项目依赖
-RUN uv sync -i https://pypi.tuna.tsinghua.edu.cn/simple/
-
-# 修复 newspaper 依赖
-RUN python -m nltk.downloader punkt_tab
 
 # 暴露 Flask 应用运行的端口
 EXPOSE 4000
 
 # 定义容器启动时运行的命令
-# 使用 uv run 来启动应用，并监听所有网络接口
-CMD ["uv", "run", "main.py"]
+CMD ["python", "main.py"]
+
