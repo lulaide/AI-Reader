@@ -6,12 +6,79 @@ metadata:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: backend-secret
+  name: app-secret
   namespace: ai-reader
 type: Opaque
 data:
-  OPENAI_API_KEY: c2st
   OPENAI_API_BASE: aHR0cHM
+  OPENAI_API_KEY: c2st
+  MYSQL_ROOT_PASSWORD: cGFzc3dvcmQ=
+  MYSQL_USER: cm9vdA== # root
+  MYSQL_DATABASE: YWlfcmVhZGVy # ai_reader
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: ai-reader
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deployment
+  namespace: ai-reader
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          envFrom:
+            - secretRef:
+                name: app-secret
+          volumeMounts:
+            - name: mysql-persistent-storage
+              mountPath: /var/lib/mysql
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+      volumes:
+        - name: mysql-persistent-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+  namespace: ai-reader
+spec:
+  type: ClusterIP
+  selector:
+    app: mysql
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -28,24 +95,46 @@ spec:
       labels:
         app: backend
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: thunder   # 绑定到含该本地文件的 thunder 节点
       containers:
         - name: backend
           image: harbor.lulaide.com:80/ai-reader/ai-reader-backend:latest
           ports:
             - containerPort: 4000
-          envFrom:
-            - secretRef:
-                name: backend-secret
-          volumeMounts:
-            - name: db-storage
-              mountPath: /app/articles.db           # 容器内访问路径（文件）
-      volumes:
-        - name: db-storage
-          hostPath:
-            path: /root/AI-Reader/back/articles.db  # 宿主机真实文件
-            type: File
+          env:
+            - name: MYSQL_HOST
+              value: "mysql-service"
+            - name: MYSQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: MYSQL_USER
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: MYSQL_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: MYSQL_DATABASE
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: OPENAI_API_KEY
+            - name: OPENAI_API_BASE
+              valueFrom:
+                secretKeyRef:
+                  name: app-secret
+                  key: OPENAI_API_BASE
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "128Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -81,6 +170,13 @@ spec:
           image: harbor.lulaide.com:80/ai-reader/ai-reader-frontend:latest
           ports:
             - containerPort: 80
+          resources:
+            requests:
+              cpu: "25m"
+              memory: "64Mi"
+            limits:
+              cpu: "100m"
+              memory: "128Mi"
 ---
 apiVersion: v1
 kind: Service

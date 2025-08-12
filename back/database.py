@@ -1,11 +1,15 @@
-import sqlite3
-
-DB_FILE = 'articles.db'
+import mysql.connector
+import os
 
 def get_db_connection():
     """获取数据库连接"""
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
+    conn = mysql.connector.connect(
+        host=os.getenv('MYSQL_HOST', 'localhost'),
+        user=os.getenv('MYSQL_USER'),
+        password=os.getenv('MYSQL_PASSWORD'),
+        database=os.getenv('MYSQL_DATABASE'),
+        port=os.getenv('MYSQL_PORT', 3306)
+    )
     return conn
 
 def init_db():
@@ -14,23 +18,24 @@ def init_db():
     cursor = conn.cursor()
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS articles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            url TEXT NOT NULL UNIQUE,
-            title TEXT NOT NULL,
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            url VARCHAR(2083) NOT NULL UNIQUE,
+            title VARCHAR(255) NOT NULL,
             content TEXT NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.commit()
+    cursor.close()
     conn.close()
 
 def add_article(url: str, title: str, content: str):
     """向数据库中添加新文章"""
     conn = get_db_connection()
-    cursor = conn.cursor()
+    cursor = conn.cursor(dictionary=True)
     try:
         cursor.execute(
-            "INSERT INTO articles (url, title, content) VALUES (?, ?, ?)",
+            "INSERT INTO articles (url, title, content) VALUES (%s, %s, %s)",
             (url, title, content)
         )
         conn.commit()
@@ -38,29 +43,42 @@ def add_article(url: str, title: str, content: str):
         if new_id is None:
             return None
         return get_article_by_id(new_id)
-    except sqlite3.IntegrityError:
-        # URL已存在
+    except mysql.connector.Error as err:
+        # 处理URL已存在等错误
+        print(f"Database Error: {err}")
         return None
     finally:
+        cursor.close()
         conn.close()
 
 def get_all_articles():
     """获取所有文章"""
     conn = get_db_connection()
-    articles = conn.execute('SELECT * FROM articles ORDER BY created_at DESC').fetchall()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('SELECT * FROM articles ORDER BY created_at DESC')
+    articles = cursor.fetchall()
+    cursor.close()
     conn.close()
-    return [dict(row) for row in articles]
+    return articles
 
 def get_article_by_id(article_id: int):
     """通过ID获取单篇文章"""
     conn = get_db_connection()
-    article = conn.execute('SELECT * FROM articles WHERE id = ?', (article_id,)).fetchone()
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute('SELECT * FROM articles WHERE id = %s', (article_id,))
+    article = cursor.fetchone()
+    cursor.close()
     conn.close()
-    return dict(article) if article else None
+    return article
 
 def get_articles_count():
     """获取文章总数"""
     conn = get_db_connection()
-    count = conn.execute('SELECT COUNT(id) FROM articles').fetchone()[0]
+    cursor = conn.cursor()
+    cursor.execute('SELECT COUNT(id) FROM articles')
+    result = cursor.fetchone()
+    cursor.close()
     conn.close()
-    return count
+    if result:
+        return result[0]
+    return 0
