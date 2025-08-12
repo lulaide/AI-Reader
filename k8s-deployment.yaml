@@ -9,12 +9,15 @@ metadata:
   name: app-secret
   namespace: ai-reader
 type: Opaque
-data:
-  OPENAI_API_BASE: aHR0cHM
-  OPENAI_API_KEY: c2st
-  MYSQL_ROOT_PASSWORD: cGFzc3dvcmQ=
-  MYSQL_USER: cm9vdA== # root
-  MYSQL_DATABASE: YWlfcmVhZGVy # ai_reader
+stringData:
+  # OpenAI
+  OPENAI_API_BASE: a
+  OPENAI_API_KEY: a
+
+  MYSQL_ROOT_PASSWORD: "123456"
+  MYSQL_USER: "appuser"
+  MYSQL_PASSWORD: "StrongPass!2025"
+  MYSQL_DATABASE: "ai_reader"
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -22,8 +25,7 @@ metadata:
   name: mysql-pvc
   namespace: ai-reader
 spec:
-  accessModes:
-    - ReadWriteOnce
+  accessModes: [ ReadWriteOnce ]
   resources:
     requests:
       storage: 1Gi
@@ -36,16 +38,14 @@ metadata:
 spec:
   replicas: 1
   selector:
-    matchLabels:
-      app: mysql
+    matchLabels: { app: mysql }
   template:
     metadata:
-      labels:
-        app: mysql
+      labels: { app: mysql }
     spec:
       containers:
         - name: mysql
-          image: mysql:8.0
+          image: harbor.lulaide.com:80/ai-reader/mariadb:10.11
           ports:
             - containerPort: 3306
           envFrom:
@@ -55,12 +55,14 @@ spec:
             - name: mysql-persistent-storage
               mountPath: /var/lib/mysql
           resources:
-            requests:
-              cpu: "100m"
-              memory: "256Mi"
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
+            requests: { cpu: "100m", memory: "256Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+          readinessProbe:
+            exec:
+              command: ["sh","-c","mariadb-admin ping -h 127.0.0.1 --silent"]
+            initialDelaySeconds: 5
+            periodSeconds: 3
+            timeoutSeconds: 2
       volumes:
         - name: mysql-persistent-storage
           persistentVolumeClaim:
@@ -73,8 +75,7 @@ metadata:
   namespace: ai-reader
 spec:
   type: ClusterIP
-  selector:
-    app: mysql
+  selector: { app: mysql }
   ports:
     - protocol: TCP
       port: 3306
@@ -88,13 +89,19 @@ metadata:
 spec:
   replicas: 1
   selector:
-    matchLabels:
-      app: backend
+    matchLabels: { app: backend }
   template:
     metadata:
-      labels:
-        app: backend
+      labels: { app: backend }
     spec:
+      initContainers:
+        - name: wait-mysql
+          image: harbor.lulaide.com:80/ai-reader/mariadb:10.11
+          command: ["sh","-c"]
+          args:
+            - |
+              echo "Waiting for mysql-service:3306...";
+              until mariadb-admin ping -h mysql-service --silent; do sleep 2; done
       containers:
         - name: backend
           image: harbor.lulaide.com:80/ai-reader/ai-reader-backend:latest
@@ -104,37 +111,18 @@ spec:
             - name: MYSQL_HOST
               value: "mysql-service"
             - name: MYSQL_USER
-              valueFrom:
-                secretKeyRef:
-                  name: app-secret
-                  key: MYSQL_USER
+              valueFrom: { secretKeyRef: { name: app-secret, key: MYSQL_USER } }
             - name: MYSQL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: app-secret
-                  key: MYSQL_ROOT_PASSWORD
+              valueFrom: { secretKeyRef: { name: app-secret, key: MYSQL_PASSWORD } }   # 关键修改
             - name: MYSQL_DATABASE
-              valueFrom:
-                secretKeyRef:
-                  name: app-secret
-                  key: MYSQL_DATABASE
+              valueFrom: { secretKeyRef: { name: app-secret, key: MYSQL_DATABASE } }
             - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: app-secret
-                  key: OPENAI_API_KEY
+              valueFrom: { secretKeyRef: { name: app-secret, key: OPENAI_API_KEY } }
             - name: OPENAI_API_BASE
-              valueFrom:
-                secretKeyRef:
-                  name: app-secret
-                  key: OPENAI_API_BASE
+              valueFrom: { secretKeyRef: { name: app-secret, key: OPENAI_API_BASE } }
           resources:
-            requests:
-              cpu: "50m"
-              memory: "128Mi"
-            limits:
-              cpu: "200m"
-              memory: "256Mi"
+            requests: { cpu: "50m",  memory: "128Mi" }
+            limits:   { cpu: "200m", memory: "256Mi" }
 ---
 apiVersion: v1
 kind: Service
@@ -143,8 +131,7 @@ metadata:
   namespace: ai-reader
 spec:
   type: ClusterIP
-  selector:
-    app: backend
+  selector: { app: backend }
   ports:
     - protocol: TCP
       port: 4000
@@ -158,12 +145,10 @@ metadata:
 spec:
   replicas: 1
   selector:
-    matchLabels:
-      app: frontend
+    matchLabels: { app: frontend }
   template:
     metadata:
-      labels:
-        app: frontend
+      labels: { app: frontend }
     spec:
       containers:
         - name: frontend
@@ -171,12 +156,8 @@ spec:
           ports:
             - containerPort: 80
           resources:
-            requests:
-              cpu: "25m"
-              memory: "64Mi"
-            limits:
-              cpu: "100m"
-              memory: "128Mi"
+            requests: { cpu: "25m", memory: "64Mi" }
+            limits:   { cpu: "100m", memory: "128Mi" }
 ---
 apiVersion: v1
 kind: Service
@@ -185,8 +166,7 @@ metadata:
   namespace: ai-reader
 spec:
   type: NodePort
-  selector:
-    app: frontend
+  selector: { app: frontend }
   ports:
     - protocol: TCP
       port: 80
