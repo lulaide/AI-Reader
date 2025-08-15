@@ -1,22 +1,28 @@
-name: 构建和推送 Docker 镜像
+name: 构建、推送并更新 K8s
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build-and-push-backend:
     runs-on: ubuntu-latest
+    env:
+      HARBOR_REGISTRY: harbor.lulaide.com:80
+      IMAGE_BACKEND: harbor.lulaide.com:80/ai-reader/ai-reader-backend
+      K8S_NAMESPACE: ai-reader
+      BACKEND_DEPLOYMENT: backend-deployment
+      BACKEND_CONTAINER: backend
     steps:
       - name: Add Gitea host to /etc/hosts
         run: echo "172.22.160.14 gitea.lulaide.com" | sudo tee -a /etc/hosts
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Log in to Harbor
         uses: docker/login-action@v3
         with:
-          registry: harbor.lulaide.com:80
+          registry: ${{ env.HARBOR_REGISTRY }}
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_PASSWORD }}
 
@@ -26,21 +32,54 @@ jobs:
           context: ./back
           push: true
           tags: |
-            harbor.lulaide.com:80/ai-reader/ai-reader-backend:latest
-            harbor.lulaide.com:80/ai-reader/ai-reader-backend:${{ gitea.sha }}
+            ${{ env.IMAGE_BACKEND }}:latest
+            ${{ env.IMAGE_BACKEND }}:${{ gitea.sha }}
+
+      # ---- 部署到 K8s：安装 kubectl + 注入 kubeconfig + set image + 等待滚动完成 ----
+      - name: Install kubectl
+        shell: bash
+        run: |
+          set -euo pipefail
+          KVER="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
+          curl -sSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/${KVER}/bin/linux/amd64/kubectl"
+          chmod +x /usr/local/bin/kubectl
+          kubectl version --client=true
+
+      - name: Setup kubeconfig
+        shell: bash
+        run: |
+          mkdir -p ~/.kube
+          echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG }}
+
+      - name: Update backend image in Kubernetes
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ gitea.sha }}"
+          kubectl -n "${K8S_NAMESPACE}" set image deploy/${BACKEND_DEPLOYMENT} ${BACKEND_CONTAINER}=${IMAGE_BACKEND}:${TAG}
+          kubectl -n "${K8S_NAMESPACE}" rollout status deploy/${BACKEND_DEPLOYMENT} --timeout=180s
 
   build-and-push-frontend:
     runs-on: ubuntu-latest
+    env:
+      HARBOR_REGISTRY: harbor.lulaide.com:80
+      IMAGE_FRONTEND: harbor.lulaide.com:80/ai-reader/ai-reader-frontend
+      K8S_NAMESPACE: ai-reader
+      FRONTEND_DEPLOYMENT: frontend-deployment
+      FRONTEND_CONTAINER: frontend
     steps:
       - name: Add Gitea host to /etc/hosts
         run: echo "172.22.160.14 gitea.lulaide.com" | sudo tee -a /etc/hosts
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Log in to Harbor
         uses: docker/login-action@v3
         with:
-          registry: harbor.lulaide.com:80
+          registry: ${{ env.HARBOR_REGISTRY }}
           username: ${{ secrets.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_PASSWORD }}
 
@@ -50,5 +89,30 @@ jobs:
           context: ./front
           push: true
           tags: |
-            harbor.lulaide.com:80/ai-reader/ai-reader-frontend:latest
-            harbor.lulaide.com:80/ai-reader/ai-reader-frontend:${{ gitea.sha }}
+            ${{ env.IMAGE_FRONTEND }}:latest
+            ${{ env.IMAGE_FRONTEND }}:${{ gitea.sha }}
+
+      - name: Install kubectl
+        shell: bash
+        run: |
+          set -euo pipefail
+          KVER="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
+          curl -sSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/${KVER}/bin/linux/amd64/kubectl"
+          chmod +x /usr/local/bin/kubectl
+          kubectl version --client=true
+
+      - name: Setup kubeconfig
+        shell: bash
+        run: |
+          mkdir -p ~/.kube
+          echo "${KUBECONFIG_B64}" | base64 -d > ~/.kube/config
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG }}
+
+      - name: Update frontend image in Kubernetes
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${{ gitea.sha }}"
+          kubectl -n "${K8S_NAMESPACE}" set image deploy/${FRONTEND_DEPLOYMENT} ${FRONTEND_CONTAINER}=${IMAGE_FRONTEND}:${TAG}
+          kubectl -n "${K8S_NAMESPACE}" rollout status deploy/${FRONTEND_DEPLOYMENT} --timeout=180s
