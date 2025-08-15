@@ -89,13 +89,10 @@ jobs:
             ${{ env.IMAGE_FRONTEND }}:latest
             ${{ env.IMAGE_FRONTEND }}:${{ gitea.sha }}
 
-      - name: Install kubectl
-        shell: bash
+      - name: Copy kubectl to PATH
         run: |
-          set -euo pipefail
-          KVER="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
-          curl -sSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/${KVER}/bin/linux/amd64/kubectl"
-          chmod +x /usr/local/bin/kubectl
+          sudo cp tools/kubectl /usr/local/bin/kubectl
+          sudo chmod +x /usr/local/bin/kubectl
           kubectl version --client=true
 
       - name: Setup kubeconfig
