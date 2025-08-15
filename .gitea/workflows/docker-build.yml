@@ -36,13 +36,10 @@ jobs:
             ${{ env.IMAGE_BACKEND }}:${{ gitea.sha }}
 
       # ---- 部署到 K8s：安装 kubectl + 注入 kubeconfig + set image + 等待滚动完成 ----
-      - name: Install kubectl
-        shell: bash
+      - name: Copy kubectl to PATH
         run: |
-          set -euo pipefail
-          KVER="$(curl -sSL https://dl.k8s.io/release/stable.txt)"
-          curl -sSLo /usr/local/bin/kubectl "https://dl.k8s.io/release/${KVER}/bin/linux/amd64/kubectl"
-          chmod +x /usr/local/bin/kubectl
+          sudo cp tools/kubectl /usr/local/bin/kubectl
+          sudo chmod +x /usr/local/bin/kubectl
           kubectl version --client=true
 
       - name: Setup kubeconfig
