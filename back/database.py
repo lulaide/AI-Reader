@@ -1,16 +1,24 @@
-import mysql.connector
 import os
+import mysql.connector
+from mysql.connector import pooling
+
+_pool = None
+
 
 def get_db_connection():
-    """获取数据库连接"""
-    conn = mysql.connector.connect(
-        host=os.getenv('MYSQL_HOST', 'localhost'),
-        user=os.getenv('MYSQL_USER'),
-        password=os.getenv('MYSQL_PASSWORD'),
-        database=os.getenv('MYSQL_DATABASE'),
-        port=os.getenv('MYSQL_PORT', 3306)
-    )
-    return conn
+    """获取数据库连接，使用连接池以减少连接开销"""
+    global _pool
+    if _pool is None:
+        _pool = pooling.MySQLConnectionPool(
+            pool_name="ai_reader_pool",
+            pool_size=int(os.getenv('MYSQL_POOL_SIZE', 5)),
+            host=os.getenv('MYSQL_HOST', 'localhost'),
+            user=os.getenv('MYSQL_USER'),
+            password=os.getenv('MYSQL_PASSWORD'),
+            database=os.getenv('MYSQL_DATABASE'),
+            port=os.getenv('MYSQL_PORT', 3306),
+        )
+    return _pool.get_connection()
 
 def init_db():
     """初始化数据库，创建表"""
